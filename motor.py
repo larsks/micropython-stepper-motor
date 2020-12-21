@@ -77,6 +77,10 @@ class Motor:
 
         self.step(steps * dir)
 
+    def step_until_angle(self, angle, dir=None):
+        target = angle / 360 * self.maxpos
+        self.step_until(target, dir=dir)
+
 
 class FullStepMotor(Motor):
     maxpos = 2048
