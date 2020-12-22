@@ -17,6 +17,12 @@ class Motor:
         self._state = 0
         self._pos = 0
 
+    def __repr__(self):
+        return '<{} @ {}>'.format(
+            self.__class__.__name__,
+            self.pos,
+        )
+
     @property
     def pos(self):
         return self._pos
