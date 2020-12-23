@@ -39,26 +39,23 @@ class Motor:
     def zero(self):
         self._pos = 0
 
+    def _step(self, dir):
+        state = self.states[self._state]
+
+        for i, val in enumerate(state):
+            self.pins[i].value(val)
+
+        self._state = (self._state + dir) % len(self.states)
+        self._pos = (self._pos + dir) % self.maxpos
+
     def step(self, steps):
-        if steps < 0:
-            steps = abs(steps)
-            dir = -1
-        else:
-            dir = 1
+        dir = 1 if steps >= 0 else -1
+        steps = abs(steps)
 
         for _ in range(steps):
             t_start = time.ticks_ms()
-            state = self.states[self._state]
 
-            if dir == 1:
-                self._state = (self._state + 1) % len(self.states)
-                self._pos = (self._pos + 1) % self.maxpos
-            elif dir == -1:
-                self._state = (self._state - 1) % len(self.states)
-                self._pos = (self._pos - 1) % self.maxpos
-
-            for i, val in enumerate(state):
-                self.pins[i].value(val)
+            self._step(dir)
 
             t_end = time.ticks_ms()
             t_delta = time.ticks_diff(t_end, t_start)
@@ -68,31 +65,26 @@ class Motor:
         if target < 0 or target > self.maxpos:
             raise ValueError(target)
 
-        delta = target - self.pos
-        steps = abs(delta)
+        if dir is None:
+            dir = 1 if target > self._pos else -1
+            if abs(target - self._pos) > self.maxpos/2:
+                dir = -dir
 
-        if dir is None and delta < 0:
-            dir = -1
-        elif dir is None:
-            dir = 1
-
-        if delta < 0 and dir == 1:
-            steps = delta % self.maxpos
-        elif delta > 0 and dir == -1:
-            steps = (0-delta) % self.maxpos
-
-        print('target', target, 'pos', self.pos,
-              'delta', delta, 'steps', steps,
-              'dir', dir)
-
-        self.step(steps * dir)
+        while True:
+            if self._pos == target:
+                break
+            self.step(dir)
 
     def step_until_angle(self, angle, dir=None):
-        target = angle / 360 * self.maxpos
+        if angle < 0 or angle > 360:
+            raise ValueError(angle)
+
+        target = int(angle / 360 * self.maxpos)
         self.step_until(target, dir=dir)
 
 
 class FullStepMotor(Motor):
+    stepms = 5
     maxpos = 2048
     states = [
         [1, 1, 0, 0],
@@ -103,6 +95,7 @@ class FullStepMotor(Motor):
 
 
 class HalfStepMotor(Motor):
+    stepms = 3
     maxpos = 4096
     states = [
         [1, 0, 0, 0],
