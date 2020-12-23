@@ -8,6 +8,10 @@ import time
 class Motor:
     stepms = 10
 
+    # Do be defined by subclasses
+    maxpos = 0
+    states = []
+
     def __init__(self, p1, p2, p3, p4, stepms=None):
         self.pins = [p1, p2, p3, p4]
 
@@ -42,14 +46,14 @@ class Motor:
         else:
             dir = 1
 
-        for step in range(steps):
+        for _ in range(steps):
             t_start = time.ticks_ms()
             state = self.states[self._state]
 
-            if (dir == 1):
+            if dir == 1:
                 self._state = (self._state + 1) % len(self.states)
                 self._pos = (self._pos + 1) % self.maxpos
-            elif (dir == -1):
+            elif dir == -1:
                 self._state = (self._state - 1) % len(self.states)
                 self._pos = (self._pos - 1) % self.maxpos
 
