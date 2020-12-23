@@ -1,4 +1,5 @@
 import machine
+import time
 
 # Thanks to:
 # https://youtu.be/B86nqDRskVU
@@ -22,6 +23,7 @@ class Motor:
         self._running = False
         self._state = 0
         self._target = None
+        self._steps = None
         self._timer = machine.Timer(-1)
 
     def __repr__(self):
@@ -34,6 +36,10 @@ class Motor:
     def pos(self):
         return self._pos
 
+    @property
+    def running(self):
+        return self._running
+
     @classmethod
     def frompins(cls, *pins, **kwargs):
         return cls(*[machine.Pin(pin, machine.Pin.OUT) for pin in pins],
@@ -42,63 +48,82 @@ class Motor:
     def zero(self):
         self._pos = 0
 
-    def _step(self, dir=None):
-        if self._pos == self._target:
-            return self.stop()
-
-        if dir is None:
-            dir = self._dir
-
-        if dir not in [-1, 1]:
-            raise ValueError(dir)
-
+    # adance one step
+    def _step(self):
         state = self.states[self._state]
-
-        self._state = (self._state + dir) % len(self.states)
-        self._pos = (self._pos + dir) % self.maxpos
 
         for i, val in enumerate(state):
             self.pins[i].value(val)
 
-    def step(self, steps):
-        dir = 1 if steps >= 0 else -1
-        self.setTarget(self.pos + steps, dir)
-        self.start()
+        self._state = (self._state + self._dir) % len(self.states)
+        self._pos = (self._pos + self._dir) % self.maxpos
 
-    def step_until(self, target, dir=None):
-        self.setTarget(target, dir=dir)
-        self.start()
+    # advance one step unless we have reached self._target
+    def _step_target(self):
+        if self._pos == self._target:
+            self.stop()
+            return
 
-    def step_until_angle(self, angle, dir=None):
-        target = int(angle / 360 * self.maxpos)
-        self.step_until(target, dir=dir)
+        self._step()
 
-    def start(self):
+    # advance one step unless we have already completed self._steps steps
+    def _step_count(self):
+        if self._steps == 0:
+            self.stop()
+            return
+
+        self._steps -= 1
+
+        self._step()
+
+    def setTarget(self, target):
+        if target is None:
+            self._target = None
+            return
+
+        if target < 0 or target > self.maxpos:
+            raise ValueError(target)
+
+        self._target = target
+
+        self._dir = 1 if target > self._pos else -1
+        if abs(target - self._pos) > self.maxpos//2:
+            self._dir = -self._dir
+
+    def setDirection(self, dir):
+        if dir not in [-1, 1]:
+            raise ValueError(dir)
+
+        self._dir = dir
+
+    def runSteps(self, steps):
         if self._running:
             raise ValueError('already running')
 
         self._running = True
-        self._timer.init(mode=machine.Timer.PERIODIC, period=self.stepms, callback=lambda t: self._step())
+        self._dir = 1 if steps >= 0 else -1
+        self._steps = abs(steps)
+        self._timer.init(mode=machine.Timer.PERIODIC, period=self.stepms, callback=lambda t: self._step_count())
+
+    def runToTarget(self, target):
+        if self._running:
+            raise ValueError('already running')
+
+        self.setTarget(target)
+        self._running = True
+        self._timer.init(mode=machine.Timer.PERIODIC, period=self.stepms, callback=lambda t: self._step_target())
 
     def stop(self):
         self._running = False
         self._timer.deinit()
 
-    def setTarget(self, target, dir=None):
-        target = target % self.maxpos
-
-        self._target = target % self.maxpos
-
-        if dir is None:
-            dir = 1 if target > self._pos else -1
-            if abs(target - self._pos) > self.maxpos//2:
-                dir = -dir
-
-        self._dir = dir
+    def wait(self):
+        while self._running:
+            time.sleep_ms(500)
 
 
 class FullStepMotor(Motor):
-    stepms = 7
+    stepms = 5
     maxpos = 2048
     states = [
         [1, 1, 0, 0],
@@ -109,7 +134,7 @@ class FullStepMotor(Motor):
 
 
 class HalfStepMotor(Motor):
-    stepms = 5
+    stepms = 3
     maxpos = 4096
     states = [
         [1, 0, 0, 0],
