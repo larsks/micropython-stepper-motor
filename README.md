@@ -1,3 +1,5 @@
+# MicroPython Stepper Motor Driver
+
 Code to drive a 28BYJ-48 motor attached to a ULN2003 driver.
 
 ## Overview
@@ -35,7 +37,6 @@ like this ([pinout][]):
 
 Then you could create a `HalfStepMotor` object like this:
 
-
 ```
 import motor
 m = motor.HalfStepMotor.frompins(14,12,13,15)
@@ -61,11 +62,9 @@ m.step_until(2000)
 
 Or to a specific angle:
 
-
 ```
 m.step_until_angle(270)
 ```
-
 
 When using the `step_until*` methods, the motor will by default move
 in the direction of shortest distance. You can force a direction with
