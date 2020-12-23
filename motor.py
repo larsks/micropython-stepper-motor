@@ -17,10 +17,12 @@ class Motor:
         if stepms is not None:
             self.stepms = stepms
 
-        self._state = 0
+        self._dir = 1
         self._pos = 0
-        self._timer = machine.Timer(-1)
+        self._running = False
+        self._state = 0
         self._target = None
+        self._timer = machine.Timer(-1)
 
     def __repr__(self):
         return '<{} @ {}>'.format(
@@ -40,53 +42,59 @@ class Motor:
     def zero(self):
         self._pos = 0
 
-    def _step(self, dir):
+    def _step(self, dir=None):
         if self._pos == self._target:
             return self.stop()
 
+        if dir is None:
+            dir = self._dir
+
+        if dir not in [-1, 1]:
+            raise ValueError(dir)
+
         state = self.states[self._state]
 
-        if dir == 1:
-            self._state = (self._state + 1) % len(self.states)
-            self._pos = (self._pos + 1) % self.maxpos
-        elif dir == -1:
-            self._state = (self._state - 1) % len(self.states)
-            self._pos = (self._pos - 1) % self.maxpos
-        else:
-            raise ValueError(dir)
+        self._state = (self._state + dir) % len(self.states)
+        self._pos = (self._pos + dir) % self.maxpos
 
         for i, val in enumerate(state):
             self.pins[i].value(val)
 
     def step(self, steps):
         dir = 1 if steps >= 0 else -1
-        self._target = (self.pos + steps) % self.maxpos
-        self.start(dir)
+        self.setTarget(self.pos + steps, dir)
+        self.start()
 
     def step_until(self, target, dir=None):
-        target = target % self.maxpos
-
-        self._target = target
-
-        dir = 1 if target > self._pos else -1
-        if abs(target - self._pos) > self.maxpos//2:
-            dir = -dir
-
-        print('pos', self._pos, 'target', self._target, 'dir', dir)
-        self.start(dir)
+        self.setTarget(target, dir=dir)
+        self.start()
 
     def step_until_angle(self, angle, dir=None):
         target = int(angle / 360 * self.maxpos)
         self.step_until(target, dir=dir)
 
-    def start(self, dir=1):
-        self._timer.init(mode=machine.Timer.PERIODIC, period=self.stepms, callback=lambda t: self._step(dir))
+    def start(self):
+        if self._running:
+            raise ValueError('already running')
+
+        self._running = True
+        self._timer.init(mode=machine.Timer.PERIODIC, period=self.stepms, callback=lambda t: self._step())
 
     def stop(self):
+        self._running = False
         self._timer.deinit()
 
-    def setTarget(self, target):
-        self._target = target
+    def setTarget(self, target, dir=None):
+        target = target % self.maxpos
+
+        self._target = target % self.maxpos
+
+        if dir is None:
+            dir = 1 if target > self._pos else -1
+            if abs(target - self._pos) > self.maxpos//2:
+                dir = -dir
+
+        self._dir = dir
 
 
 class FullStepMotor(Motor):
