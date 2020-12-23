@@ -1,5 +1,24 @@
 Code to drive a 28BYJ-48 motor attached to a ULN2003 driver.
 
+## Overview
+
+The module `motor.py` implements the following classes:
+
+- `FullStepMotor` -- This class drives a stepper motor using full steps, which
+  with the 28BYJ-48 means 2048 steps for a single rotation.
+
+- `HalfStepMotor` -- This class drives a stepper motor using half steps, so
+  4096 steps for a single rotation.
+
+## API
+
+Motor objects support the following methods:
+
+- `zero()` -- set the current position as position 0.
+- `step(n)` -- move forward (positive `n`) or backwards (negative `n`) the given number of steps
+- `step_until(position)` -- move motor to the given position. By default the motor will move in the shortest direction, but you can force a direction with the optional `dir` keyword argument (`1` for forward, `-1` for reverse).
+- `step_until_angle(angle)` -- move motor to the given angle.
+
 ## Examples
 
 If you have a ULN2003 connected to a Wemos D1 on pins D5, D6, D7, D8,
