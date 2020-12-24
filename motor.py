@@ -105,11 +105,30 @@ class Motor:
         self._steps = abs(steps)
         self._timer.init(mode=machine.Timer.PERIODIC, period=self.stepms, callback=lambda t: self._step_count())
 
-    def runToTarget(self, target):
+    def runToTarget(self, target, dir=None):
         if self._running:
             raise ValueError('already running')
 
         self.setTarget(target)
+        if dir is not None:
+            self.setDirection(dir)
+
+        self._running = True
+        self._timer.init(mode=machine.Timer.PERIODIC, period=self.stepms, callback=lambda t: self._step_target())
+
+    def runToAngle(self, angle, dir=None):
+        if self._running:
+            raise ValueError('already running')
+
+        if angle < 0 or angle > 360:
+            raise ValueError(angle)
+
+        target = int(self.maxpos / 360 * angle)
+
+        self.setTarget(target)
+        if dir is not None:
+            self.setDirection(dir)
+
         self._running = True
         self._timer.init(mode=machine.Timer.PERIODIC, period=self.stepms, callback=lambda t: self._step_target())
 
