@@ -1,0 +1,6 @@
+class Pin:
+    IN: int = 0
+    OUT: int = 1
+
+    def __init__(self, pin_number: int, direction: int): ...
+    def value(self, v: int | None = None) -> int: ...

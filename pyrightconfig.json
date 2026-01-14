@@ -1,0 +1,5 @@
+{
+	"stubPath": "typings",
+	"reportMissingModuleSource": false,
+	"reportImplicitOverride": false
+}
